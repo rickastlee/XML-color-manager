@@ -19,6 +19,7 @@ INPUT_XML_PATH="XML path: "
 INPUT_AUTO_BACKUP="Automatic backups (y/n): "
 
 PROJECT_NAME_REGEX='^[a-zA-Z0-9\ ._-]{4,64}$'
+NOT_NUMBER='[^0-9]'
 
 # $1 bool at least one available project
 display_menu () {
@@ -31,13 +32,45 @@ display_menu () {
 	OPTIONS="$OPTIONS,$OPTION_QUIT"
 	
     IFS=',' read -r -a array <<< "$OPTIONS"
-
+    
+	len=-1
     for index in "${!array[@]}"; do
         echo "[$index] ${array[index]}"
+        len=$(expr $len + 1)
     done
     
+    echo -e ""
+    
     echo -e "\n$MSG_CHOICE\c"
-    read c
+
+    while
+        valid=1
+        read c
+        if [ -z $c ] || [[ "$c" =~ $NOT_NUMBER ]]; then
+            valid=0
+            printf "${BOLD}${RED}Please enter a number${END}\n\n"
+        elif [ "$c" -gt $len ]; then
+            valid=0
+            printf "${BOLD}${RED}No option found with the ID ${c}${END}\n\n"
+        fi    
+        [ $valid -eq 0 ]
+    do true; done
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     run_command "${array[$c]}"
 }
 
@@ -61,9 +94,12 @@ run_command()
 	    	echo -e "$INPUT_XML_PATH\c"
 	        read xml_path
 	        
-	        if [ ! -f $xml_path ]; then
+	        if [ ! -e $xml_path ]; then
 	        	valid=0
-	        	printf "${BOLD}${RED}The file path "$xml_path" either does not exist or is a directory\n\n${END}"
+	        	printf "${BOLD}${RED}The path "$xml_path" does not exist\n\n${END}"
+	        elif [ ! -f $xml_path ]; then
+	        	valid=0
+	        	printf "${BOLD}${RED}The path "$xml_path" is not a file\n\n${END}"
 	        elif [[ "$xml_path" != *.xml ]]; then
 	        	valid=0
 				printf "${BOLD}${RED}The file "$xml_path" is not an XML\n\n${END}"
