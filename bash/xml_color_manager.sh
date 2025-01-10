@@ -9,14 +9,20 @@ OPTION_CREATE="Create a new project"
 OPTION_OPEN="Open an existing project"
 OPTION_DELETE="Delete a project"
 OPTION_QUIT="Quit"
+OPTION_BACKUP="Backup XML"
+OPTION_RESTORE="Restore a backup"
+OPTION_RM_FIRST_HALF="Remove first half"
+OPTION_RM_SECOND_HALF="Remove second half"
 
 MSG_CHOOSE="Choose one of the options below"
 MSG_CONFIG="Enter some details below"
 MSG_CHOICE="Choice: "
 MSG_QUIT="Quitting..."
-MSG_LIST="Below is a list of your existing projects."
+MSG_PROJECT_LIST="Below is a list of your existing projects."
+MSG_BACKUP_LIST="Below is a list of your backups."
 MSG_TO_DELETE="Choose one to delete."
 MSG_TO_OPEN="Choose one to open."
+MSG_TO_RESTORE="Choose one to restore."
 MSG_CONFIRM_DELETE="Are you sure you want to delete the project"
 
 INPUT_NAME="Name: "
@@ -119,7 +125,7 @@ run_command()
 		echo $auto_backup >> .config
 		printf "${BOLD}${GREEN}\nProject ${name} created successfully\n${END}"
 	elif [[ "$1" == "$OPTION_DELETE" ]]; then
-		echo -e "$MSG_LIST $MSG_TO_DELETE\n"
+		echo -e "$MSG_PROJECT_LIST $MSG_TO_DELETE\n"
 		ls -A -1 "$PROJECTS"
 		
 		while
@@ -142,7 +148,7 @@ run_command()
 			printf "${BOLD}${GREEN}\nProject ${name} deleted successfully\n${END}"
 		fi
 	elif [[ "$1" == "$OPTION_OPEN" ]]; then
-		echo -e "$MSG_LIST $MSG_TO_OPEN\n"
+		echo -e "$MSG_PROJECT_LIST $MSG_TO_OPEN\n"
 		ls -A -1 "$PROJECTS"
 
 		while
@@ -161,6 +167,57 @@ run_command()
 		if [ ! -f "$xml" ]; then
 			printf "${BOLD}${RED}\nThe XML ${xml} does not exist. Edit the project config.\n${END}"
 		fi
+
+		SECOND_HALF_END=$(expr $(wc -l < "$xml") - 3)
+		FIRST_HALF_END=$(expr $SECOND_HALF_END / 2)
+		SECOND_HALF_START=$(expr $FIRST_HALF_END + 1)
+
+		echo -e "$MSG_CHOOSE\n"
+		OPTIONS="$OPTION_BACKUP"
+
+		if [ -d "$PROJECT_DIR/backups" ] && [ ! -z "$(ls -A "$PROJECT_DIR/backups")" ]; then
+			OPTIONS="$OPTIONS,$OPTION_RESTORE"
+		fi
+
+		OPTIONS="$OPTIONS,$OPTION_RM_FIRST_HALF,$OPTION_RM_SECOND_HALF"
+
+		IFS=',' read -r -a array <<< "$OPTIONS"
+
+		len=-1
+		for index in "${!array[@]}"; do
+			echo "[$index] ${array[index]}"
+			len=$(expr $len + 1)
+		done
+
+		echo ""
+		while
+			valid=1
+			echo -e "$MSG_CHOICE\c"
+			read c
+			if [ -z $c ] || [[ "$c" =~ $NOT_NUMBER ]]; then
+				valid=0
+				printf "${BOLD}${RED}Please enter a number${END}\n\n"
+			elif [ "$c" -gt $len ]; then
+				valid=0
+				printf "${BOLD}${RED}No option found with the ID ${c}${END}\n\n"
+			fi	
+			[ $valid -eq 0 ]
+		do true; done
+
+		command="${array[$c]}"
+
+		if [ "$command" == "$OPTION_BACKUP" ]; then
+			BACKUP_NAME=$(date "+%Y-%m-%d %T")
+			BACKUP_DIR="$PROJECT_DIR/backups"
+			mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
+			cp "$xml" "$BACKUP_DIR/$BACKUP_NAME"
+		elif [ "$command" == "$OPTION_RESTORE" ]; then
+			clear
+			echo -e "$MSG_BACKUP_LIST $MSG_TO_RESTORE\n"
+			ls -At -1 "$PROJECT_DIR/backups" | awk '{print "[" NR "]", $0}'
+		fi
+		# echo "remove colors 1 - $FIRST_HALF_END"
+		# echo "remove colors $SECOND_HALF_START - $SECOND_HALF_END"
 	fi
 }
 
@@ -174,7 +231,7 @@ fi
 WORKDIR="$INTERNAL_STORAGE/XmlColorManager"
 PROJECTS="$WORKDIR/projects"
 
-if [ ! -d "$PROJECTS" ] || [ -z $(ls -A "$PROJECTS") ]; then
+if [ ! -d "$PROJECTS" ] || [ -z "$(ls -A "$PROJECTS")" ]; then
 	display_menu 0
 else
 	display_menu 1
