@@ -5,13 +5,12 @@ RED="\e[91m"
 GREEN="\e[92m"
 END="\e[0m"
 
-OPTION_OPEN="Open an existing project"
 OPTION_CREATE="Create a new project"
+OPTION_OPEN="Open an existing project"
 OPTION_QUIT="Quit"
 
 MSG_CHOOSE="Choose one of the options below"
 MSG_CONFIG="Enter some details below"
-MSG_NO_PROJECTS="No projects found"
 MSG_CHOICE="Choice: "
 
 INPUT_NAME="Name: "
@@ -25,7 +24,6 @@ NOT_NUMBER='[^0-9]'
 display_menu () {
 	echo -e "\n$MSG_CHOOSE\n"
 	OPTIONS="$OPTION_CREATE"
-	i=1
 	if [ $1 -eq 1 ]; then
 		OPTIONS="$OPTIONS,$OPTION_OPEN"
 	fi
@@ -38,13 +36,11 @@ display_menu () {
         echo "[$index] ${array[index]}"
         len=$(expr $len + 1)
     done
-    
-    echo -e ""
-    
-    echo -e "\n$MSG_CHOICE\c"
 
+    echo ""
     while
         valid=1
+        echo -e "$MSG_CHOICE\c"
         read c
         if [ -z $c ] || [[ "$c" =~ $NOT_NUMBER ]]; then
             valid=0
@@ -55,23 +51,9 @@ display_menu () {
         fi    
         [ $valid -eq 0 ]
     do true; done
-
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    run_command "${array[$c]}"
+    echo "${array[$c]}"
+    #run_command "${array[$c]}"
 }
 
 run_command()
@@ -117,6 +99,7 @@ run_command()
 	fi
 }
 
+
 if [ -z "$TERMUX_VERSION" ]; then
 	INTERNAL_STORAGE="$HOME"
 else
@@ -126,9 +109,8 @@ fi
 WORKDIR="$INTERNAL_STORAGE/XmlColorManager"
 PROJECTS="$WORKDIR/projects"
 
-if [ ! -d $PROJECTS ]; then
-	#echo -e "$MSG_NO_PROJECTS"
-	display_menu 0
+if [ -d $PROJECTS ]; then
+	display_menu 1
 else
-    display_menu 1
+    display_menu 0
 fi
