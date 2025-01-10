@@ -163,61 +163,95 @@ run_command()
 		PROJECT_DIR="$PROJECTS/$name"
 		cd "$PROJECT_DIR"
 		xml=$(head -n1 .config)
-		echo "XML to open: "$xml""
+		# echo "XML to open: "$xml""
 		if [ ! -f "$xml" ]; then
 			printf "${BOLD}${RED}\nThe XML ${xml} does not exist. Edit the project config.\n${END}"
 		fi
 
-		SECOND_HALF_END=$(expr $(wc -l < "$xml") - 3)
-		FIRST_HALF_END=$(expr $SECOND_HALF_END / 2)
-		SECOND_HALF_START=$(expr $FIRST_HALF_END + 1)
+		while true; do
+			SECOND_HALF_END=$(expr $(wc -l < "$xml") - 3)
+			FIRST_HALF_END=$(expr $SECOND_HALF_END / 2)
+			SECOND_HALF_START=$(expr $FIRST_HALF_END + 1)
+		
+			echo -e "$MSG_CHOOSE\n"
+			OPTIONS="$OPTION_BACKUP"
 
-		echo -e "$MSG_CHOOSE\n"
-		OPTIONS="$OPTION_BACKUP"
+			if [ -d "$PROJECT_DIR/backups" ] && [ ! -z "$(ls -A "$PROJECT_DIR/backups")" ]; then
+				OPTIONS="$OPTIONS,$OPTION_RESTORE"
+			fi
 
-		if [ -d "$PROJECT_DIR/backups" ] && [ ! -z "$(ls -A "$PROJECT_DIR/backups")" ]; then
-			OPTIONS="$OPTIONS,$OPTION_RESTORE"
-		fi
+			if [ $SECOND_HALF_END -gt 1 ]; then
+				OPTIONS="$OPTIONS,$OPTION_RM_FIRST_HALF,$OPTION_RM_SECOND_HALF"
+			fi
 
-		OPTIONS="$OPTIONS,$OPTION_RM_FIRST_HALF,$OPTION_RM_SECOND_HALF"
+			IFS=',' read -r -a array <<< "$OPTIONS"
 
-		IFS=',' read -r -a array <<< "$OPTIONS"
+			len=-1
+			for index in "${!array[@]}"; do
+				echo "[$index] ${array[index]}"
+				len=$(expr $len + 1)
+			done
 
-		len=-1
-		for index in "${!array[@]}"; do
-			echo "[$index] ${array[index]}"
-			len=$(expr $len + 1)
-		done
+			echo ""
+			while
+				valid=1
+				echo -e "$MSG_CHOICE\c"
+				read c
+				if [ -z $c ] || [[ "$c" =~ $NOT_NUMBER ]]; then
+					valid=0
+					printf "${BOLD}${RED}Please enter a number${END}\n\n"
+				elif [ "$c" -gt $len ]; then
+					valid=0
+					printf "${BOLD}${RED}No option found with the ID ${c}${END}\n\n"
+				fi	
+				[ $valid -eq 0 ]
+			do true; done
 
-		echo ""
-		while
-			valid=1
-			echo -e "$MSG_CHOICE\c"
-			read c
-			if [ -z $c ] || [[ "$c" =~ $NOT_NUMBER ]]; then
-				valid=0
-				printf "${BOLD}${RED}Please enter a number${END}\n\n"
-			elif [ "$c" -gt $len ]; then
-				valid=0
-				printf "${BOLD}${RED}No option found with the ID ${c}${END}\n\n"
-			fi	
-			[ $valid -eq 0 ]
-		do true; done
+			command="${array[$c]}"
 
-		command="${array[$c]}"
-
-		if [ "$command" == "$OPTION_BACKUP" ]; then
-			BACKUP_NAME=$(date "+%Y-%m-%d %T")
-			BACKUP_DIR="$PROJECT_DIR/backups"
-			mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
-			cp "$xml" "$BACKUP_DIR/$BACKUP_NAME"
-		elif [ "$command" == "$OPTION_RESTORE" ]; then
 			clear
-			echo -e "$MSG_BACKUP_LIST $MSG_TO_RESTORE\n"
-			ls -At -1 "$PROJECT_DIR/backups" | awk '{print "[" NR "]", $0}'
-		fi
-		# echo "remove colors 1 - $FIRST_HALF_END"
-		# echo "remove colors $SECOND_HALF_START - $SECOND_HALF_END"
+			if [ "$command" == "$OPTION_BACKUP" ]; then
+				BACKUP_NAME=$(date "+%Y-%m-%d %T")
+				BACKUP_DIR="$PROJECT_DIR/backups"
+				mkdir -p "$BACKUP_DIR/$BACKUP_NAME"
+				cp "$xml" "$BACKUP_DIR/$BACKUP_NAME"
+			elif [ "$command" == "$OPTION_RESTORE" ]; then
+				echo -e "$MSG_BACKUP_LIST $MSG_TO_RESTORE\n"
+				ls -At -1 "$PROJECT_DIR/backups" | awk '{print "[" NR "]", $0}'
+				backups_count=$(ls -A -1 "$PROJECT_DIR/backups" | wc -l)
+
+				while
+					valid=1
+					echo -e "\n$MSG_CHOICE\c"
+					read b
+					if [ -z "$b" ] || [[ "$b" =~ $NOT_NUMBER ]]; then
+						valid=0
+						printf "${BOLD}${RED}Please enter a number${END}\n"
+					elif [ "$b" -gt $backups_count ]; then
+						valid=0
+						printf "${BOLD}${RED}Please enter a number between 1 and ${backups_count}${END}\n"
+					fi
+					[ $valid -eq 0 ]
+				do true; done
+
+				TO_RESTORE=$(ls -At -1 "$PROJECT_DIR/backups" | head -n$b | tail -n1)
+				rm "$xml"
+				cp "$PROJECT_DIR/backups/$TO_RESTORE/$(ls "$PROJECT_DIR/backups/$TO_RESTORE")" "$xml"
+				clear
+			elif [ "$command" == "$OPTION_RM_FIRST_HALF" ]; then
+				cat "$xml" | head -n2 > "tmp.xml"
+				cat "$xml" | tail -n$(expr $SECOND_HALF_END - $FIRST_HALF_END + 1) >> "tmp.xml"
+				cp "tmp.xml" "$xml"
+				rm "tmp.xml"
+			elif [ "$command" == "$OPTION_RM_SECOND_HALF" ]; then
+				cat "$xml" | head -n$(expr $FIRST_HALF_END + 2) > "tmp.xml"
+				cat "$xml" | tail -n1 >> "tmp.xml"
+				cp "tmp.xml" "$xml"
+				rm "tmp.xml"
+			fi
+			# echo "remove colors 1 - $FIRST_HALF_END"
+			# echo "remove colors $SECOND_HALF_START - $SECOND_HALF_END"
+		done
 	fi
 }
 
