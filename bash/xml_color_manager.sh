@@ -157,15 +157,24 @@ run_command()
 
 		"$OPTION_OPEN")
 			echo -e "$MSG_PROJECT_LIST $MSG_TO_OPEN\n"
-			ls -A -1 "$PROJECTS"
+			ls -At -1 "$PROJECTS" | awk '{print "[" NR "]", $0}'
+			projects_count=$(ls -A -1 "$PROJECTS" | wc -l)
 
 			while
+				valid=1
 				echo -e "\n$MSG_CHOICE\c"
-				read name
-				[ ! -d "$PROJECTS/$name" ]
-			do
-				printf "${BOLD}${RED}No project named ${name} found.\n${END}"
-			done
+				read p
+				if [ -z "$p" ] || [[ "$p" =~ $NOT_NUMBER ]]; then
+					valid=0
+					printf "${BOLD}${RED}Please enter a number${END}\n"
+				elif [ "$p" -gt $projects_count ]; then
+					valid=0
+					printf "${BOLD}${RED}Please enter a number between 1 and ${projects_count}${END}\n"
+				fi
+				[ $valid -eq 0 ]
+			do true; done
+
+			name=$(ls -At -1 "$PROJECTS" | head -n$p | tail -n1)
 
 			clear
 			PROJECT_DIR="$PROJECTS/$name"
